@@ -10,15 +10,27 @@
 </head>
 <body>
 
-    <header class="header text-white text-center py-2">
-        <div class="container">
-            <h1 class="display-5">💧 Gestión de Irrigadores</h1>
-            <p class="lead mb-0">Selecciona un domo para visualizar y añadir dispositivos de riego.</p>
-        </div>
+    <!-- CAMBIO: Header convertido en una barra de navegación completa -->
+    <header class="header text-white py-2">
+        <nav class="container navbar navbar-expand-lg navbar-dark">
+            <a class="navbar-brand" href="index.html">
+                <h1 class="h3 mb-0">Bio-Domo 🪐</h1>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="index.html">Inicio</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="irrigadores.html">💧 Irrigadores</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">💡 Luces</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">🌡️ Ambiente</a></li>
+                </ul>
+            </div>
+        </nav>
     </header>
 
     <main class="container my-5">
-        <!-- SECCIÓN PARA SELECCIONAR EL DOMO -->
         <div class="row mb-4">
             <div class="col-md-8 offset-md-2">
                 <div class="content-card p-3">
@@ -29,10 +41,8 @@
                 </div>
             </div>
         </div>
-        <!-- FIN DE LA SECCIÓN DEL SELECTOR -->
 
         <div class="row g-4">
-            <!-- Columna para mostrar la lista de irrigadores -->
             <div class="col-lg-8">
                 <div class="content-card">
                     <h2>Dispositivos Actuales</h2>
@@ -42,41 +52,85 @@
                                 <tr>
                                     <th scope="col">Nombre</th>
                                     <th scope="col">Ubicación</th>
-                                    <th scope="col">Estado</th>
+                                    <th scope="col" class="text-center">Estado</th>
                                     <th scope="col">Humedad Suelo</th>
+                                    <th scope="col">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody id="irrigadores-tbody">
-                                <!-- Las filas se insertarán aquí dinámicamente -->
-                            </tbody>
+                            <tbody id="irrigadores-tbody"></tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            <!-- Columna para el formulario de alta -->
             <div class="col-lg-4">
                 <div class="content-card">
                     <h2>Añadir Dispositivo</h2>
                     <form id="form-nuevo-irrigador">
                         <div class="mb-3">
-                            <label for="nombre-irr" class="form-label">Nombre del Irrigador</label>
-                            <input type="text" class="form-control" id="nombre-irr" required placeholder="Ej: Riego de Fresas">
+                            <label for="nombre-irr" class="form-label">Nombre</label>
+                            <input type="text" class="form-control" id="nombre-irr" required>
                         </div>
                         <div class="mb-3">
                             <label for="ubicacion-irr" class="form-label">Ubicación</label>
-                            <input type="text" class="form-control" id="ubicacion-irr" required placeholder="Ej: Zona Sur">
+                            <input type="text" class="form-control" id="ubicacion-irr" required>
                         </div>
                         <div class="mb-3">
-                            <label for="humedad-irr" class="form-label">Humedad Inicial (%)</label>
+                            <label for="humedad-irr" class="form-label">Humedad (%)</label>
                             <input type="number" class="form-control" id="humedad-irr" required value="40" min="0" max="100">
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">Guardar Dispositivo</button>
+                        <button type="submit" class="btn btn-primary w-100">Guardar</button>
                     </form>
                 </div>
             </div>
         </div>
+
+        <!-- CAMBIO: Nueva sección para el registro de eventos -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="content-card">
+                    <h2>Registro de Actividad (Últimos 10 eventos)</h2>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Dispositivo</th>
+                                    <th scope="col">Mensaje</th>
+                                    <th scope="col">Fecha y Hora</th>
+                                </tr>
+                            </thead>
+                            <tbody id="eventos-tbody">
+                                <!-- Filas de eventos se cargarán aquí -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
+    
+    <div class="modal fade" id="editarModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background-color: #2a2d2f; color: #e0e0e0;">
+                <div class="modal-header" style="border-bottom-color: #444;">
+                    <h5 class="modal-title">Editar Irrigador</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-editar-irrigador">
+                        <input type="hidden" id="edit-irr-id">
+                        <div class="mb-3"><label for="edit-nombre-irr" class="form-label">Nombre</label><input type="text" class="form-control" id="edit-nombre-irr" required></div>
+                        <div class="mb-3"><label for="edit-ubicacion-irr" class="form-label">Ubicación</label><input type="text" class="form-control" id="edit-ubicacion-irr" required></div>
+                        <div class="mb-3"><label for="edit-humedad-irr" class="form-label">Humedad (%)</label><input type="number" class="form-control" id="edit-humedad-irr" required min="0" max="100"></div>
+                    </form>
+                </div>
+                <div class="modal-footer" style="border-top-color: #444;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="guardar-cambios-btn">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <footer class="footer text-white text-center">
         <div class="container">
