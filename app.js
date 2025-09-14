@@ -22,9 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         irrigadores.forEach(irr => {
             const imagenSrc = irr.activo ? 'images/on_i.png' : 'images/off_i.png';
-            // === CAMBIO: Aumentado el tamaño de la imagen a 36px ===
             const estadoBtn = `<button class="btn-icon btn-toggle" data-id="${irr.id_irr}" title="Cambiar estado"><img src="${imagenSrc}" alt="Estado" width="36"></button>`;
-            
             const fila = `<tr><td>${irr.nombre}</td><td>${irr.ubicacion}</td><td class="text-center">${estadoBtn}</td><td>${irr.humedadSuelo}%</td><td><button class="btn btn-sm btn-warning btn-editar" data-id="${irr.id_irr}">Editar</button><button class="btn btn-sm btn-danger btn-eliminar" data-id="${irr.id_irr}">Eliminar</button></td></tr>`;
             irrigadoresTbody.innerHTML += fila;
         });
@@ -40,10 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const dispositivo = domoState.irrigadores.find(irr => irr.id_irr === evento.dispositivoId);
             const nombreDispositivo = dispositivo ? dispositivo.nombre : `Dispositivo eliminado`;
             const fecha = new Date(evento.timestamp).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'medium' });
-            
-            // === CAMBIO: Aumentado el tamaño de todos los iconos a 36px ===
             let iconoHtml = `<img src="images/default.png" alt="evento" width="36">`;
-            
             if (evento.mensaje.includes('desactivado')) {
                 iconoHtml = `<img src="images/off_i.png" alt="Desactivado" width="36">`;
             } else if (evento.mensaje.includes('activado')) {
@@ -55,7 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (evento.mensaje.includes('eliminado')) {
                 iconoHtml = `<img src="images/delete.png" alt="Eliminado" width="36">`;
             }
-
             const fila = `<tr><td class="text-center">${iconoHtml}</td><td>${nombreDispositivo}</td><td>${evento.mensaje}</td><td>${fecha}</td></tr>`;
             eventosTbody.innerHTML += fila;
         });
@@ -131,11 +125,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-    const registrarEvento = async (dispositivo, mensaje, prioridad = 'baja') => {
+    const registrarEvento = async (dispositivo, mensaje, tipo = 'historial', prioridad = 'baja') => {
         const evento = {
             domoId: domoState.id,
             dispositivoId: dispositivo.id_irr,
-            type: "historial",
+            type: tipo,
             mensaje: mensaje,
             timestamp: new Date().toISOString(),
             prioridad: prioridad
@@ -148,6 +142,36 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } catch (error) {
             console.error("No se pudo registrar el evento:", error);
+        }
+    };
+
+    const simularCambioHumedad = async () => {
+        if (!domoState || !domoState.irrigadores || domoState.irrigadores.length === 0) {
+            return;
+        }
+        let cambiosRealizados = false;
+        domoState.irrigadores.forEach(irr => {
+            if (irr.activo) {
+                cambiosRealizados = true;
+                const cambio = (Math.random() * 6) - 3;
+                let nuevaHumedad = irr.humedadSuelo + cambio;
+                if (nuevaHumedad > 100) nuevaHumedad = 100;
+                if (nuevaHumedad < 0) nuevaHumedad = 0;
+                irr.humedadSuelo = Math.round(nuevaHumedad);
+
+                if (irr.humedadSuelo < 55) {
+                    const mensajeAlerta = `Humedad BAJA: ${irr.humedadSuelo}%. Riego recomendado.`;
+                    registrarEvento(irr, mensajeAlerta, 'alerta', 'alta');
+                } else if (irr.humedadSuelo > 90) {
+                    const mensajeAlerta = `Humedad ALTA: ${irr.humedadSuelo}%. Exceso de agua.`;
+                    registrarEvento(irr, mensajeAlerta, 'alerta', 'alta');
+                }
+            }
+        });
+
+        if (cambiosRealizados) {
+            await actualizarDomoEnAPI();
+            renderTablaIrrigadores(domoState.irrigadores);
         }
     };
 
@@ -164,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (await actualizarDomoEnAPI()) {
             formNuevoIrrigador.reset();
             renderTablaIrrigadores(domoState.irrigadores);
-            registrarEvento(nuevoIrrigador, `Dispositivo '${nuevoIrrigador.nombre}' ha sido creado.`, 'media');
+            registrarEvento(nuevoIrrigador, `Dispositivo '${nuevoIrrigador.nombre}' ha sido creado.`, 'historial', 'media');
         } else {
             domoState.irrigadores.pop();
         }
@@ -210,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
         domoState.irrigadores = domoState.irrigadores.filter(irr => irr.id_irr !== irrId);
         if (await actualizarDomoEnAPI()) {
             renderTablaIrrigadores(domoState.irrigadores);
-            registrarEvento(irrigadorEliminado, `Dispositivo '${irrigadorEliminado.nombre}' ha sido eliminado.`, 'media');
+            registrarEvento(irrigadorEliminado, `Dispositivo '${irrigadorEliminado.nombre}' ha sido eliminado.`, 'historial', 'media');
         } else {
             domoState.irrigadores = originalIrrigadores;
         }
@@ -242,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (await actualizarDomoEnAPI()) {
             editModalInstance.hide();
             renderTablaIrrigadores(domoState.irrigadores);
-            registrarEvento(irrigadorActualizado, `Dispositivo '${irrigadorActualizado.nombre}' ha sido modificado.`);
+            registrarEvento(irrigadorActualizado, `Dispositivo '${irrigadorActualizado.nombre}' ha sido modificado.`, 'historial');
         } else {
             domoState.irrigadores = originalIrrigadores;
         }
@@ -256,4 +280,5 @@ document.addEventListener('DOMContentLoaded', () => {
     guardarCambiosBtn.addEventListener('click', handleGuardarCambios);
     
     cargarYPopularDomos(); 
+    setInterval(simularCambioHumedad, 5000);
 });
