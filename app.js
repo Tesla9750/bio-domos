@@ -1,31 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ---------------------------------------------------------------
-    // 🎯 URL de tu API
-    // ---------------------------------------------------------------
     const MOCKAPI_URL = 'https://68c60c19442c663bd0262b0a.mockapi.io/v1';
 
-    // --- ESTADO GLOBAL ---
     let domosDisponibles = [];
     let domoState = null;
     let editModalInstance = null;
-    let eventosInterval = null; // Guardará la referencia al intervalo de refresco
+    let eventosInterval = null;
 
-    // --- ELEMENTOS DEL DOM ---
     const domoSelector = document.getElementById('domo-selector');
     const irrigadoresTbody = document.getElementById('irrigadores-tbody');
-    const eventosTbody = document.getElementById('eventos-tbody'); // <-- Nuevo elemento para la tabla de eventos
+    const eventosTbody = document.getElementById('eventos-tbody');
     const formNuevoIrrigador = document.getElementById('form-nuevo-irrigador');
     const editarModalElement = document.getElementById('editarModal');
     const guardarCambiosBtn = document.getElementById('guardar-cambios-btn');
-    const formEditarIrrigador = document.getElementById('form-editar-irrigador');
 
-
-    // --- FUNCIONES ---
-
-    /**
-     * Renderiza la tabla de irrigadores con un interruptor para el estado.
-     */
     const renderTablaIrrigadores = (irrigadores) => {
         irrigadoresTbody.innerHTML = '';
         if (!irrigadores || irrigadores.length === 0) {
@@ -33,72 +21,61 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         irrigadores.forEach(irr => {
-            const checkedAttribute = irr.activo ? 'checked' : '';
-            const estadoToggle = `
-                <div class="form-check form-switch d-flex justify-content-center align-items-center" style="height: 100%;">
-                    <input class="form-check-input btn-toggle" type="checkbox" role="switch" data-id="${irr.id_irr}" ${checkedAttribute}>
-                </div>
-            `;
-            const fila = `
-                <tr>
-                    <td>${irr.nombre}</td>
-                    <td>${irr.ubicacion}</td>
-                    <td class="text-center">${estadoToggle}</td>
-                    <td>${irr.humedadSuelo}%</td>
-                    <td>
-                        <button class="btn btn-sm btn-warning btn-editar" data-id="${irr.id_irr}">Editar</button>
-                        <button class="btn btn-sm btn-danger btn-eliminar" data-id="${irr.id_irr}">Eliminar</button>
-                    </td>
-                </tr>`;
+            const imagenSrc = irr.activo ? 'images/on_i.png' : 'images/off_i.png';
+            // === CAMBIO: Aumentado el tamaño de la imagen a 36px ===
+            const estadoBtn = `<button class="btn-icon btn-toggle" data-id="${irr.id_irr}" title="Cambiar estado"><img src="${imagenSrc}" alt="Estado" width="36"></button>`;
+            
+            const fila = `<tr><td>${irr.nombre}</td><td>${irr.ubicacion}</td><td class="text-center">${estadoBtn}</td><td>${irr.humedadSuelo}%</td><td><button class="btn btn-sm btn-warning btn-editar" data-id="${irr.id_irr}">Editar</button><button class="btn btn-sm btn-danger btn-eliminar" data-id="${irr.id_irr}">Eliminar</button></td></tr>`;
             irrigadoresTbody.innerHTML += fila;
         });
     };
 
-    /**
-     * NUEVA FUNCIÓN: Renderiza la tabla de eventos.
-     */
     const renderTablaEventos = (eventos) => {
         eventosTbody.innerHTML = '';
         if (!eventos || eventos.length === 0) {
-            eventosTbody.innerHTML = '<tr><td colspan="3" class="text-center">No hay eventos recientes para este domo.</td></tr>';
+            eventosTbody.innerHTML = '<tr><td colspan="4" class="text-center">No hay eventos recientes para este domo.</td></tr>';
             return;
         }
         eventos.forEach(evento => {
             const dispositivo = domoState.irrigadores.find(irr => irr.id_irr === evento.dispositivoId);
-            const nombreDispositivo = dispositivo ? dispositivo.nombre : `ID: ${evento.dispositivoId}`;
+            const nombreDispositivo = dispositivo ? dispositivo.nombre : `Dispositivo eliminado`;
             const fecha = new Date(evento.timestamp).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'medium' });
+            
+            // === CAMBIO: Aumentado el tamaño de todos los iconos a 36px ===
+            let iconoHtml = `<img src="images/default.png" alt="evento" width="36">`;
+            
+            if (evento.mensaje.includes('desactivado')) {
+                iconoHtml = `<img src="images/off_i.png" alt="Desactivado" width="36">`;
+            } else if (evento.mensaje.includes('activado')) {
+                iconoHtml = `<img src="images/on_i.png" alt="Activado" width="36">`;
+            } else if (evento.mensaje.includes('creado')) {
+                iconoHtml = `<img src="images/add.png" alt="Creado" width="36">`;
+            } else if (evento.mensaje.includes('modificado')) {
+                iconoHtml = `<img src="images/update.png" alt="Modificado" width="36">`;
+            } else if (evento.mensaje.includes('eliminado')) {
+                iconoHtml = `<img src="images/delete.png" alt="Eliminado" width="36">`;
+            }
 
-            const fila = `
-                <tr>
-                    <td>${nombreDispositivo}</td>
-                    <td>${evento.mensaje}</td>
-                    <td>${fecha}</td>
-                </tr>`;
+            const fila = `<tr><td class="text-center">${iconoHtml}</td><td>${nombreDispositivo}</td><td>${evento.mensaje}</td><td>${fecha}</td></tr>`;
             eventosTbody.innerHTML += fila;
         });
     };
 
-    /**
-     * NUEVA FUNCIÓN: Carga los últimos 10 eventos desde la API.
-     */
     const cargarUltimosEventos = async () => {
         if (!domoState) return;
         try {
-            const domoId = domoState.id;
-            const url = `${MOCKAPI_URL}/eventos?domoId=${domoId}&sortBy=timestamp&order=desc&limit=10`;
+            const url = `${MOCKAPI_URL}/eventos?domoId=${domoState.id}&sortBy=timestamp&order=desc`;
             const response = await fetch(url);
             if (!response.ok) throw new Error('No se pudieron cargar los eventos.');
             const eventos = await response.json();
-            renderTablaEventos(eventos);
+            const eventosLimitados = eventos.slice(0, 10);
+            renderTablaEventos(eventosLimitados);
         } catch (error) {
             console.error("Error al refrescar eventos:", error);
-            eventosTbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">Error al cargar eventos.</td></tr>`;
+            eventosTbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">Error al cargar eventos.</td></tr>`;
         }
     };
     
-    /**
-     * Actualiza el domo completo en la API.
-     */
     const actualizarDomoEnAPI = async () => {
         try {
             const response = await fetch(`${MOCKAPI_URL}/domos/${domoState.id}`, {
@@ -116,12 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-    /**
-     * Carga los datos de un domo específico e inicia el monitoreo de eventos.
-     */
     const cargarDatosDomoSeleccionado = async (domoId) => {
         if (eventosInterval) clearInterval(eventosInterval);
-
         if (!domoId) {
             irrigadoresTbody.innerHTML = '<tr><td colspan="5" class="text-center">Por favor, selecciona un domo.</td></tr>';
             return;
@@ -130,38 +103,25 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${MOCKAPI_URL}/domos/${domoId}`);
             if (!response.ok) throw new Error('No se pudo obtener la información del domo.');
             domoState = await response.json();
-
-            if (typeof domoState.irrigadores === 'string') {
-                domoState.irrigadores = JSON.parse(domoState.irrigadores || '[]');
-            }
-            if (!Array.isArray(domoState.irrigadores)) {
-                domoState.irrigadores = [];
-            }
+            domoState.irrigadores = (typeof domoState.irrigadores === 'string') ? JSON.parse(domoState.irrigadores || '[]') : domoState.irrigadores || [];
             renderTablaIrrigadores(domoState.irrigadores);
-
             await cargarUltimosEventos();
             eventosInterval = setInterval(cargarUltimosEventos, 2000);
-
         } catch (error) {
             console.error("Error al cargar datos del domo:", error);
             irrigadoresTbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">${error.message}</td></tr>`;
         }
     };
 
-    /**
-     * Carga la lista inicial de todos los domos y los añade al selector.
-     */
     const cargarYPopularDomos = async () => {
         try {
             const response = await fetch(`${MOCKAPI_URL}/domos`);
             if (!response.ok) throw new Error('No se pudieron cargar los domos.');
             domosDisponibles = await response.json();
-            
             domoSelector.innerHTML = domosDisponibles.length ? '' : '<option>No se encontraron domos.</option>';
             domosDisponibles.forEach(domo => {
                 domoSelector.innerHTML += `<option value="${domo.id}">${domo.nombre} (Ubicación: ${domo.ubicacion})</option>`;
             });
-
             if (domosDisponibles.length > 0) {
                 await cargarDatosDomoSeleccionado(domosDisponibles[0].id);
             }
@@ -170,61 +130,15 @@ document.addEventListener('DOMContentLoaded', () => {
             domoSelector.innerHTML = `<option>${error.message}</option>`;
         }
     };
-
-    /**
-     * Maneja el envío del formulario para crear un nuevo irrigador.
-     */
-    const handleFormSubmit = async (event) => {
-        event.preventDefault();
-        
-        const nuevoIrrigador = {
-            id_irr: `irr_${Date.now()}`,
-            nombre: document.getElementById('nombre-irr').value,
-            ubicacion: document.getElementById('ubicacion-irr').value,
-            activo: false,
-            humedadSuelo: parseInt(document.getElementById('humedad-irr').value)
-        };
-
-        domoState.irrigadores.push(nuevoIrrigador);
-
-        if (await actualizarDomoEnAPI()) {
-            formNuevoIrrigador.reset();
-            renderTablaIrrigadores(domoState.irrigadores);
-        } else {
-            domoState.irrigadores.pop(); 
-        }
-    };
-
-    /**
-     * Maneja los clics en la tabla para delegar a las funciones correspondientes.
-     */
-    const handleTablaClick = (event) => {
-        const target = event.target;
-        const irrId = target.dataset.id;
-        
-        if (target.classList.contains('btn-eliminar')) {
-            if (confirm('¿Estás seguro de que deseas eliminar este dispositivo?')) {
-                eliminarIrrigador(irrId);
-            }
-        } else if (target.classList.contains('btn-editar')) {
-            abrirModalEditar(irrId);
-        } else if (target.classList.contains('btn-toggle')) {
-            toggleEstadoIrrigador(irrId, target.checked);
-        }
-    };
     
-    /**
-     * Registra un evento de cambio de estado en la API.
-     */
-    const registrarEventoDeEstado = async (domoId, dispositivoId, dispositivoNombre, nuevoEstado) => {
-        const textoEstado = nuevoEstado ? 'activado' : 'desactivado';
+    const registrarEvento = async (dispositivo, mensaje, prioridad = 'baja') => {
         const evento = {
-            domoId: domoId,
-            dispositivoId: dispositivoId,
+            domoId: domoState.id,
+            dispositivoId: dispositivo.id_irr,
             type: "historial",
-            mensaje: `El dispositivo '${dispositivoNombre}' se ha ${textoEstado}.`,
+            mensaje: mensaje,
             timestamp: new Date().toISOString(),
-            prioridad: "baja"
+            prioridad: prioridad
         };
         try {
             await fetch(`${MOCKAPI_URL}/eventos`, {
@@ -237,24 +151,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    /**
-     * Cambia el estado (activo/inactivo) de un irrigador y registra el evento.
-     */
+    const handleFormSubmit = async (event) => {
+        event.preventDefault();
+        const nuevoIrrigador = {
+            id_irr: `irr_${Date.now()}`,
+            nombre: document.getElementById('nombre-irr').value,
+            ubicacion: document.getElementById('ubicacion-irr').value,
+            activo: false,
+            humedadSuelo: parseInt(document.getElementById('humedad-irr').value)
+        };
+        domoState.irrigadores.push(nuevoIrrigador);
+        if (await actualizarDomoEnAPI()) {
+            formNuevoIrrigador.reset();
+            renderTablaIrrigadores(domoState.irrigadores);
+            registrarEvento(nuevoIrrigador, `Dispositivo '${nuevoIrrigador.nombre}' ha sido creado.`, 'media');
+        } else {
+            domoState.irrigadores.pop();
+        }
+    };
+
+    const handleTablaClick = (event) => {
+        const target = event.target.closest('button');
+        if (!target) return;
+        const irrId = target.dataset.id;
+        if (target.classList.contains('btn-eliminar')) {
+            if (confirm('¿Estás seguro de que deseas eliminar este dispositivo?')) {
+                eliminarIrrigador(irrId);
+            }
+        } else if (target.classList.contains('btn-editar')) {
+            abrirModalEditar(irrId);
+        } else if (target.classList.contains('btn-toggle')) {
+            const irrigador = domoState.irrigadores.find(irr => irr.id_irr === irrId);
+            if (irrigador) {
+                toggleEstadoIrrigador(irrId, !irrigador.activo);
+            }
+        }
+    };
+
     const toggleEstadoIrrigador = async (irrId, nuevoEstado) => {
         const index = domoState.irrigadores.findIndex(irr => irr.id_irr === irrId);
         if (index === -1) return;
-
         const originalIrrigador = { ...domoState.irrigadores[index] };
         domoState.irrigadores[index].activo = nuevoEstado;
-
+        renderTablaIrrigadores(domoState.irrigadores);
         if (await actualizarDomoEnAPI()) {
-            const irrigadorCambiado = domoState.irrigadores.find(irr => irr.id_irr === irrId);
-            registrarEventoDeEstado(
-                domoState.id, 
-                irrigadorCambiado.id_irr, 
-                irrigadorCambiado.nombre, 
-                nuevoEstado
-            );
+            const irrigadorCambiado = domoState.irrigadores[index];
+            const textoEstado = nuevoEstado ? 'activado' : 'desactivado';
+            registrarEvento(irrigadorCambiado, `El dispositivo '${irrigadorCambiado.nombre}' se ha ${textoEstado}.`);
         } else {
             domoState.irrigadores[index] = originalIrrigador;
             renderTablaIrrigadores(domoState.irrigadores);
@@ -262,13 +205,14 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const eliminarIrrigador = async (irrId) => {
+        const irrigadorEliminado = domoState.irrigadores.find(irr => irr.id_irr === irrId);
         const originalIrrigadores = [...domoState.irrigadores];
         domoState.irrigadores = domoState.irrigadores.filter(irr => irr.id_irr !== irrId);
-        
-        if (!(await actualizarDomoEnAPI())) {
-            domoState.irrigadores = originalIrrigadores;
-        } else {
+        if (await actualizarDomoEnAPI()) {
             renderTablaIrrigadores(domoState.irrigadores);
+            registrarEvento(irrigadorEliminado, `Dispositivo '${irrigadorEliminado.nombre}' ha sido eliminado.`, 'media');
+        } else {
+            domoState.irrigadores = originalIrrigadores;
         }
     };
 
@@ -287,26 +231,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const irrId = document.getElementById('edit-irr-id').value;
         const index = domoState.irrigadores.findIndex(irr => irr.id_irr === irrId);
         if (index === -1) return;
-
         const irrigadorActualizado = {
             ...domoState.irrigadores[index], 
             nombre: document.getElementById('edit-nombre-irr').value,
             ubicacion: document.getElementById('edit-ubicacion-irr').value,
             humedadSuelo: parseInt(document.getElementById('edit-humedad-irr').value),
         };
-
         const originalIrrigadores = [...domoState.irrigadores];
         domoState.irrigadores[index] = irrigadorActualizado;
-
         if (await actualizarDomoEnAPI()) {
             editModalInstance.hide();
             renderTablaIrrigadores(domoState.irrigadores);
+            registrarEvento(irrigadorActualizado, `Dispositivo '${irrigadorActualizado.nombre}' ha sido modificado.`);
         } else {
             domoState.irrigadores = originalIrrigadores;
         }
     };
 
-    // --- INICIALIZACIÓN Y EVENT LISTENERS ---
+    // --- INICIALIZACIÓN ---
     editModalInstance = new bootstrap.Modal(editarModalElement);
     domoSelector.addEventListener('change', (e) => cargarDatosDomoSeleccionado(e.target.value));
     formNuevoIrrigador.addEventListener('submit', handleFormSubmit);
@@ -315,4 +257,3 @@ document.addEventListener('DOMContentLoaded', () => {
     
     cargarYPopularDomos(); 
 });
-

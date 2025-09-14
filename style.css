@@ -1,4 +1,4 @@
-/* --- AJUSTE FOOTER Y ESTRUCTURA GENERAL --- */
+/* --- AJUSTE FOOTER Y ESTRUCTURA --- */
 html, body {
     height: 100%;
 }
@@ -15,8 +15,10 @@ body {
 main {
     flex-grow: 1;
 }
+/* --- FIN AJUSTE FOOTER --- */
 
-/* --- ESTILOS DEL HEADER --- */
+
+/* Header Styles */
 .header {
     background: linear-gradient(90deg, #1c1c1c 0%, #2c2c2c 100%);
     border-bottom: 3px solid #ffc107;
@@ -32,7 +34,7 @@ main {
     font-size: 1rem;
 }
 
-/* --- TARJETAS DEL MENÚ PRINCIPAL (CON EFECTO FLIP) --- */
+/* Card & Content Styles */
 .card-container {
     perspective: 1000px;
     height: 280px;
@@ -52,18 +54,19 @@ main {
     align-items: center;
     padding: 15px;
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
-    border: 1px solid #444;
 }
 
 .card-face.front {
     background: linear-gradient(135deg, #2a2d2f, #3c4042);
     color: white;
+    border: 1px solid #444;
 }
 
 .card-face.back {
     background: #2a2d2f;
     color: #f0f0f0;
     transform: rotateY(180deg);
+    border: 1px solid #444;
 }
 
 .card-container:hover .front {
@@ -89,42 +92,24 @@ main {
     font-size: 0.9rem;
 }
 
-/* --- TARJETAS DE CONTENIDO (PARA FORMULARIOS Y TABLAS) --- */
+/* Estilo unificado para las tarjetas de contenido de las páginas de gestión */
 .content-card {
-    background: linear-gradient(135deg, #2a2d2f, #3c4042);
-    border: 1px solid #444;
+    background: linear-gradient(145deg, #2e2e2e, #242424);
     border-radius: 15px;
-    padding: 2rem;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+    padding: 1.5rem;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.6);
+    border: 1px solid #444;
+    height: 100%;
 }
 
 .content-card h2 {
-    font-weight: 600;
     color: #ffc107;
-    margin-bottom: 1.5rem;
-}
-
-/* --- ESTILOS DE FORMULARIO --- */
-.form-label {
     font-weight: 600;
-    color: #e0e0e0;
+    margin-bottom: 1.5rem;
+    text-align: center;
 }
 
-.form-control {
-    background-color: #1e1e1e;
-    border: 1px solid #555;
-    color: #fff;
-    border-radius: 8px;
-}
-
-.form-control:focus {
-    background-color: #1e1e1e;
-    color: #fff;
-    border-color: #ffc107;
-    box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
-}
-
-/* --- BOTÓN PRINCIPAL --- */
+/* Botones y Formularios */
 .btn-primary {
     background-color: #ffc107;
     border-color: #ffc107;
@@ -132,9 +117,8 @@ main {
     font-weight: 600;
     transition: all 0.3s ease;
     box-shadow: 0 4px 10px rgba(255, 193, 7, 0.2);
-    /* Unificamos el padding para que se vea bien en tarjetas y formularios */
-    padding: 0.5rem 1.2rem; 
-    font-size: 0.95rem;
+    padding: 0.5rem 1.2rem;
+    font-size: 1rem;
 }
 
 .btn-primary:hover {
@@ -145,12 +129,29 @@ main {
     box-shadow: 0 6px 15px rgba(255, 193, 7, 0.3);
 }
 
-/* --- ESTILOS DE TABLA (PARA ALERTAS Y LISTAS) --- */
-.alerts-section h2 {
-    font-weight: 600;
-    color: #f0f0f0;
+.form-control, .form-select {
+    background-color: #333;
+    color: #e0e0e0;
+    border: 1px solid #555;
 }
 
+.form-control:focus, .form-select:focus {
+    background-color: #444;
+    color: #fff;
+    border-color: #ffc107;
+    box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
+}
+
+/* Footer Styles */
+.footer {
+    background: #1c1c1c;
+    border-top: 2px solid #2c2c2c;
+    padding: 1rem 0;
+    width: 100%;
+    font-size: 0.9rem;
+}
+
+/* Estilos de Tablas */
 .table {
     border-radius: 8px;
     overflow: hidden;
@@ -171,35 +172,31 @@ main {
     background-color: #2c2c2e;
 }
 
-/* --- INSIGNIAS DE PRIORIDAD Y ESTADO --- */
-.badge {
-    padding: 0.5em 0.8em;
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.priority-high {
-    background-color: #dc3545; /* Rojo para Alta */
-    color: white;
-}
-
-.priority-medium {
-    background-color: #ffc107; /* Ámbar para Media */
-    color: #121212;
-}
-
-.priority-low {
-    background-color: #6c757d; /* Gris para Baja */
-    color: white;
-}
-
-/* --- ESTILOS DEL FOOTER --- */
-.footer {
-    background: #1c1c1c;
-    border-top: 2px solid #2c2c2c;
-    padding: 15px 0;
-    width: 100%;
+/* === CAMBIO: Botones de acción en la tabla más grandes === */
+.table .btn-sm {
+    padding: 0.3rem 0.7rem;
     font-size: 0.9rem;
 }
 
+
+/* Insignias de Prioridad (para alertas) */
+.badge.priority-high { background-color: #dc3545; color: white; }
+.badge.priority-medium { background-color: #ffc107; color: #121212; }
+.badge.priority-low { background-color: #6c757d; color: white; }
+
+/* Estilo para los nuevos botones de icono */
+.btn-icon {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.btn-icon img {
+    transition: transform 0.2s ease-in-out;
+}
+
+.btn-icon:hover img {
+    transform: scale(1.15);
+}
