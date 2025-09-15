@@ -31,37 +31,89 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderTablaEventos = (eventos) => {
         eventosTbody.innerHTML = '';
         if (!eventos || eventos.length === 0) {
-            eventosTbody.innerHTML = '<tr><td colspan="4" class="text-center">No hay eventos recientes para este domo.</td></tr>';
+            eventosTbody.innerHTML = '<tr><td colspan="4" class="text-center">No hay eventos recientes de riego para este domo.</td></tr>';
             return;
         }
+        const iconosPorEvento = {
+            'desactivado': { src: 'images/off_i.png', alt: 'Desactivado' },
+            'activado':   { src: 'images/on_i.png', alt: 'Activado' },
+            'creado':     { src: 'images/add.png', alt: 'Creado' },
+            'modificado': { src: 'images/update.png', alt: 'Modificado' },
+            'eliminado':  { src: 'images/delete.png', alt: 'Eliminado' },
+            'default':    { src: 'images/alert.png', alt: 'Alerta' }
+        };
         eventos.forEach(evento => {
             const dispositivo = domoState.irrigadores.find(irr => irr.id_irr === evento.dispositivoId);
-            const nombreDispositivo = dispositivo ? dispositivo.nombre : `Dispositivo eliminado`;
+            const nombreDispositivo = dispositivo ? dispositivo.nombre : `Dispositivo (${evento.dispositivoId})`;
             const fecha = new Date(evento.timestamp).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'medium' });
-            let iconoHtml = `<img src="images/alert.png" alt="evento" width="36">`;
-            if (evento.mensaje.includes('desactivado')) iconoHtml = `<img src="images/off_i.png" alt="Desactivado" width="36">`;
-            else if (evento.mensaje.includes('activado')) iconoHtml = `<img src="images/on_i.png" alt="Activado" width="36">`;
-            else if (evento.mensaje.includes('creado')) iconoHtml = `<img src="images/add.png" alt="Creado" width="36">`;
-            else if (evento.mensaje.includes('modificado')) iconoHtml = `<img src="images/update.png" alt="Modificado" width="36">`;
-            else if (evento.mensaje.includes('eliminado')) iconoHtml = `<img src="images/delete.png" alt="Eliminado" width="36">`;
+            const claveIcono = Object.keys(iconosPorEvento).find(key => evento.mensaje.includes(key)) || 'default';
+            const icono = iconosPorEvento[claveIcono];
+            const iconoHtml = `<img src="${icono.src}" alt="${icono.alt}" width="36">`;
             const fila = `<tr><td class="text-center">${iconoHtml}</td><td>${nombreDispositivo}</td><td>${evento.mensaje}</td><td>${fecha}</td></tr>`;
             eventosTbody.innerHTML += fila;
         });
     };
-
-    const refrescarDatosCompletos = async () => {
+    
+    // --- ▼▼▼ FUNCIÓN PRINCIPAL MODIFICADA ▼▼▼ ---
+    // Ahora esta función no solo refresca, sino que también simula los cambios de humedad.
+    const cicloDeSimulacionYRefresco = async () => {
         if (!domoState || !domoState.id) return;
+
         try {
-            const domoResponse = await fetch(`${MOCKAPI_URL}/domos/${domoState.id}`);
-            const domoActualizado = await domoResponse.json();
-            domoState = domoActualizado;
-            domoState.irrigadores = (typeof domoState.irrigadores === 'string') ? JSON.parse(domoState.irrigadores || '[]') : domoState.irrigadores || [];
+            // --- 1. SIMULACIÓN DE HUMEDAD ---
+            let huboCambios = false;
+            
+            // Hacemos un fetch para obtener el estado más reciente, incluyendo la reserva de agua.
+            const domoRes = await fetch(`${MOCKAPI_URL}/domos/${domoState.id}`);
+            if (!domoRes.ok) throw new Error('No se pudo obtener el estado del domo para la simulación.');
+            
+            const domoParaSimular = await domoRes.json();
+            let reservaActual = domoParaSimular.reservaAgua || 0;
+            let irrigadoresSimulados = (typeof domoParaSimular.irrigadores === 'string') ? JSON.parse(domoParaSimular.irrigadores || '[]') : domoParaSimular.irrigadores || [];
+
+            irrigadoresSimulados.forEach(irr => {
+                if (irr.activo && reservaActual > 0) {
+                    irr.humedadSuelo += Math.round((Math.random() * 2) + 1);
+                    reservaActual--;
+                    huboCambios = true;
+                } else if (!irr.activo) {
+                    irr.humedadSuelo -= Math.round((Math.random() * 1.5) + 1);
+                    huboCambios = true;
+                }
+                if (irr.humedadSuelo > 100) irr.humedadSuelo = 100;
+                if (irr.humedadSuelo < 0) irr.humedadSuelo = 0;
+            });
+
+            // --- 2. ACTUALIZAR API SI HUBO CAMBIOS ---
+            if (huboCambios) {
+                domoParaSimular.irrigadores = irrigadoresSimulados;
+                domoParaSimular.reservaAgua = reservaActual;
+                
+                // Actualizamos el estado global en la API y también nuestro estado local (domoState).
+                const response = await fetch(`${MOCKAPI_URL}/domos/${domoState.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(domoParaSimular)
+                });
+                domoState = await response.json();
+            } else {
+                 domoState = domoParaSimular;
+            }
+             domoState.irrigadores = (typeof domoState.irrigadores === 'string') ? JSON.parse(domoState.irrigadores || '[]') : domoState.irrigadores || [];
+
+
+            // --- 3. RENDERIZAR Y ACTUALIZAR EVENTOS ---
             renderTablaIrrigadores(domoState.irrigadores);
+            
             const eventosUrl = `${MOCKAPI_URL}/eventos?domoId=${domoState.id}&sortBy=timestamp&order=desc`;
             const eventosResponse = await fetch(eventosUrl);
             const eventos = await eventosResponse.json();
-            renderTablaEventos(eventos.slice(0, 10));
-        } catch(e) { console.error("Error refrescando datos", e); }
+            const eventosIrrigadores = eventos.filter(e => e.dispositivoId.startsWith('irr_') || e.dispositivoId.startsWith('sistema_agua_'));
+            renderTablaEventos(eventosIrrigadores.slice(0, 10));
+
+        } catch (e) {
+            console.error("Error en el ciclo de simulación y refresco:", e);
+        }
     };
     
     const actualizarDomoEnAPI = async () => {
@@ -90,12 +142,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('No se pudo obtener la información del domo.');
             domoState = await response.json();
             domoState.irrigadores = (typeof domoState.irrigadores === 'string') ? JSON.parse(domoState.irrigadores || '[]') : domoState.irrigadores || [];
-            renderTablaIrrigadores(domoState.irrigadores);
-            const eventosUrl = `${MOCKAPI_URL}/eventos?domoId=${domoState.id}&sortBy=timestamp&order=desc`;
-            const eventosResponse = await fetch(eventosUrl);
-            const eventos = await eventosResponse.json();
-            renderTablaEventos(eventos.slice(0, 10));
-            refrescoInterval = setInterval(refrescarDatosCompletos, 2000);
+            
+            await cicloDeSimulacionYRefresco(); // Ejecuta una vez al cargar
+            
+            refrescoInterval = setInterval(cicloDeSimulacionYRefresco, 5000); // Inicia el ciclo
         } catch (error) {
             console.error("Error al cargar datos del domo:", error);
             irrigadoresTbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">${error.message}</td></tr>`;
