@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Irrigadores - Bio-Domo</title>
+    <title>Gestión de Ambiente - Bio-Domo</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
@@ -12,18 +12,16 @@
 
     <header class="header text-white py-2">
         <nav class="container navbar navbar-expand-lg navbar-dark">
-            <a class="navbar-brand" href="index.html">
-                <h1 class="h3 mb-0">Bio-Domo 🪐</h1>
-            </a>
+            <a class="navbar-brand" href="index.html"><h1 class="h3 mb-0">Bio-Domo 🪐</h1></a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item"><a class="nav-link" href="index.html">Inicio</a></li>
-                    <li class="nav-item"><a class="nav-link active" href="irrigadores.html">💧 Irrigadores</a></li>
+                    <li class="nav-item"><a class="nav-link" href="irrigadores.html">💧 Irrigadores</a></li>
                     <li class="nav-item"><a class="nav-link" href="luces.html">💡 Luces</a></li>
-                    <li class="nav-item"><a class="nav-link" href="ambiente.html">🌡️ Ambiente</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="ambiente.html">🌡️ Ambiente</a></li>
                 </ul>
             </div>
         </nav>
@@ -34,9 +32,7 @@
             <div class="col-md-8 offset-md-2">
                 <div class="content-card p-3">
                     <label for="domo-selector" class="form-label h5">Selecciona un Bio-Domo:</label>
-                    <select class="form-select" id="domo-selector">
-                        <option selected>Cargando domos...</option>
-                    </select>
+                    <select class="form-select" id="domo-selector"><option selected>Cargando domos...</option></select>
                 </div>
             </div>
         </div>
@@ -44,19 +40,19 @@
         <div class="row g-4">
             <div class="col-lg-8">
                 <div class="content-card">
-                    <h2>Dispositivos Actuales</h2>
+                    <h2>Dispositivos de Climatización</h2>
                     <div class="table-responsive">
                         <table class="table table-dark table-hover align-middle">
                             <thead>
                                 <tr>
                                     <th scope="col">Nombre</th>
-                                    <th scope="col">Ubicación</th>
+                                    <th scope="col">Tipo</th>
                                     <th scope="col" class="text-center">Estado</th>
-                                    <th scope="col">Humedad Suelo</th>
+                                    <th scope="col">Valor Actual</th>
                                     <th scope="col">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody id="irrigadores-tbody"></tbody>
+                            <tbody id="dispositivos-tbody"></tbody>
                         </table>
                     </div>
                 </div>
@@ -65,20 +61,29 @@
             <div class="col-lg-4">
                 <div class="content-card">
                     <h2>Añadir Dispositivo</h2>
-                    <form id="form-nuevo-irrigador">
+                    <form id="form-nuevo-dispositivo">
                         <div class="mb-3">
-                            <label for="nombre-irr" class="form-label">Nombre</label>
-                            <input type="text" class="form-control" id="nombre-irr" required>
+                            <label for="nombre-dispositivo" class="form-label">Nombre</label>
+                            <input type="text" class="form-control" id="nombre-dispositivo" required>
                         </div>
                         <div class="mb-3">
-                            <label for="ubicacion-irr" class="form-label">Ubicación</label>
-                            <input type="text" class="form-control" id="ubicacion-irr" required>
+                            <label for="tipo-dispositivo" class="form-label">Tipo de Dispositivo</label>
+                            <select class="form-select" id="tipo-dispositivo">
+                                <option value="Temperatura">Temperatura (°C)</option>
+                                <option value="Calidad de Aire">Calidad de Aire (PPM)</option>
+                            </select>
                         </div>
-                        <div class="mb-3">
-                            <label for="humedad-irr" class="form-label">Humedad (%)</label>
-                            <input type="number" class="form-control" id="humedad-irr" required value="40" min="0" max="100">
+                         <div class="row">
+                            <div class="col-6 mb-3">
+                                <label for="umbral-min" class="form-label">Umbral Mínimo</label>
+                                <input type="number" class="form-control" id="umbral-min" value="18" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label for="umbral-max" class="form-label">Umbral Máximo</label>
+                                <input type="number" class="form-control" id="umbral-max" value="26" required>
+                            </div>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">Guardar</button>
+                        <button type="submit" class="btn btn-primary w-100">Guardar Dispositivo</button>
                     </form>
                 </div>
             </div>
@@ -87,43 +92,52 @@
         <div class="row mt-5">
             <div class="col-12">
                 <div class="content-card">
-                    <h2>Registro de Actividad (Últimos 10 eventos)</h2>
+                    <h2>Registro de Actividad de Ambiente</h2>
                     <div class="table-responsive">
                         <table class="table table-dark table-hover align-middle">
                             <thead>
                                 <tr>
-                                    <!-- CAMBIO: Nueva columna para el icono de estado -->
-                                    <th scope="col" class="text-center">Estado</th>
+                                    <th scope="col" class="text-center">Evento</th>
                                     <th scope="col">Dispositivo</th>
                                     <th scope="col">Mensaje</th>
                                     <th scope="col">Fecha y Hora</th>
                                 </tr>
                             </thead>
-                            <tbody id="eventos-tbody">
-                            </tbody>
+                            <tbody id="eventos-tbody"></tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
     </main>
-    
+
     <div class="modal fade" id="editarModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content" style="background-color: #2a2d2f; color: #e0e0e0;">
-                <div class="modal-header" style="border-bottom-color: #444;">
-                    <h5 class="modal-title">Editar Irrigador</h5>
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Dispositivo</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="form-editar-irrigador">
-                        <input type="hidden" id="edit-irr-id">
-                        <div class="mb-3"><label for="edit-nombre-irr" class="form-label">Nombre</label><input type="text" class="form-control" id="edit-nombre-irr" required></div>
-                        <div class="mb-3"><label for="edit-ubicacion-irr" class="form-label">Ubicación</label><input type="text" class="form-control" id="edit-ubicacion-irr" required></div>
-                        <div class="mb-3"><label for="edit-humedad-irr" class="form-label">Humedad (%)</label><input type="number" class="form-control" id="edit-humedad-irr" required min="0" max="100"></div>
+                    <form id="form-editar-dispositivo">
+                        <input type="hidden" id="edit-dispositivo-id">
+                        <div class="mb-3">
+                            <label for="edit-nombre-dispositivo" class="form-label">Nombre</label>
+                            <input type="text" class="form-control" id="edit-nombre-dispositivo" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label for="edit-umbral-min" class="form-label">Umbral Mínimo</label>
+                                <input type="number" class="form-control" id="edit-umbral-min" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label for="edit-umbral-max" class="form-label">Umbral Máximo</label>
+                                <input type="number" class="form-control" id="edit-umbral-max" required>
+                            </div>
+                        </div>
                     </form>
                 </div>
-                <div class="modal-footer" style="border-top-color: #444;">
+                <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary" id="guardar-cambios-btn">Guardar Cambios</button>
                 </div>
@@ -131,13 +145,9 @@
         </div>
     </div>
 
-    <footer class="footer text-white text-center">
-        <div class="container">
-            <p class="mb-0">&copy; 2025 Bio-Domo Systems. Todos los derechos reservados.</p>
-        </div>
-    </footer>
+    <footer class="footer text-white text-center py-2"><p class="mb-0">&copy; 2025 Bio-Domo Systems.</p></footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="app.js"></script>
+    <script src="ambiente_app.js"></script>
 </body>
 </html>

@@ -4,26 +4,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const alertasTbody = document.getElementById('alertas-tbody');
     const reservasContainer = document.getElementById('reservas-container');
     
-    // Elementos del Modal de Añadir
     const addDomoModalElement = document.getElementById('addDomoModal');
     const addDomoModal = new bootstrap.Modal(addDomoModalElement);
     const formNuevoDomo = document.getElementById('form-nuevo-domo');
 
-    // Elementos del Modal de Edición
     const editDomoModalElement = document.getElementById('editDomoModal');
     const editDomoModal = new bootstrap.Modal(editDomoModalElement);
     const formEditarDomo = document.getElementById('form-editar-domo');
 
     let dispositivosMap = {};
 
+    // --- ▼▼▼ CAMBIO 1: MAPEADO DE DISPOSITIVOS DE AMBIENTE ▼▼▼ ---
     const mapearDispositivos = async (domos) => {
         dispositivosMap = {};
         domos.forEach(domo => {
             const irrigadores = (typeof domo.irrigadores === 'string') ? JSON.parse(domo.irrigadores || '[]') : domo.irrigadores || [];
             const luces = (typeof domo.luces === 'string') ? JSON.parse(domo.luces || '[]') : domo.luces || [];
-            
+            const ambiente = (typeof domo.ambiente === 'string') ? JSON.parse(domo.ambiente || '[]') : domo.ambiente || []; // Se añade ambiente
+
             irrigadores.forEach(disp => { dispositivosMap[disp.id_irr] = { nombre: disp.nombre, domo: domo.nombre }; });
             luces.forEach(disp => { dispositivosMap[disp.id_luz] = { nombre: disp.nombre, domo: domo.nombre }; });
+            ambiente.forEach(disp => { dispositivosMap[disp.id_amb] = { nombre: disp.nombre, domo: domo.nombre }; }); // Se mapean dispositivos de ambiente
+            
             dispositivosMap[`sistema_agua_${domo.id}`] = { nombre: 'Sistema de Agua', domo: domo.nombre };
         });
     };
@@ -48,7 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // --- ▼▼▼ CAMBIO 1: SE AÑADE EL BOTÓN "VACIAR" A CADA TARJETA ▼▼▼ ---
     const renderReservas = (domos) => {
         reservasContainer.innerHTML = '';
         if (!domos || domos.length === 0) return;
@@ -87,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
+    // --- ▼▼▼ CAMBIO 2: SIMULACIÓN GLOBAL ACTUALIZADA ▼▼▼ ---
     const simularSistemaGlobal = async () => {
         try {
             const response = await fetch(`${MOCKAPI_URL}/domos`);
@@ -98,8 +100,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 let domoModificado = false;
                 let irrigadores = (typeof domo.irrigadores === 'string') ? JSON.parse(domo.irrigadores || '[]') : domo.irrigadores || [];
                 let luces = (typeof domo.luces === 'string') ? JSON.parse(domo.luces || '[]') : domo.luces || [];
+                let ambiente = (typeof domo.ambiente === 'string') ? JSON.parse(domo.ambiente || '[]') : domo.ambiente || [];
                 let reservaActual = domo.reservaAgua || 0;
 
+                // Simulación de Irrigadores (sin cambios)
                 irrigadores.forEach(irr => {
                     domoModificado = true;
                     if (irr.activo && reservaActual > 0) {
@@ -115,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     else if (irr.humedadSuelo > 90) registrarEvento(domo.id, irr.id_irr, `Humedad ALTA: ${irr.humedadSuelo}%.`, 'alerta', 'alta');
                 });
                 
+                // Simulación de Luces (sin cambios)
                 luces.forEach(luz => {
                     const ahoraStr = new Date().toLocaleTimeString('en-GB', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit' });
                     let deberiaEstarActiva = (luz.horarioEncendido < luz.horarioApagado)
@@ -128,14 +133,41 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
 
+                // Simulación de Ambiente (NUEVO)
+                ambiente.forEach(disp => {
+                    domoModificado = true;
+                     if (disp.tipo === 'Temperatura') {
+                        if (disp.activo) { // Si está activo, tiende a 22°C
+                            disp.valor += (22 - disp.valor) * 0.1 + (Math.random() - 0.5);
+                        } else { // Si no, fluctúa
+                            disp.valor += (Math.random() - 0.5) * 0.5;
+                        }
+                        disp.valor = Math.round(disp.valor * 10) / 10;
+                        if (disp.valor > disp.umbral_max) registrarEvento(domo.id, disp.id_amb, `ALERTA: Temperatura ALTA: ${disp.valor}°C`, 'alerta', 'alta');
+                        if (disp.valor < disp.umbral_min) registrarEvento(domo.id, disp.id_amb, `ALERTA: Temperatura BAJA: ${disp.valor}°C`, 'alerta', 'alta');
+                    } else if (disp.tipo === 'Calidad de Aire') {
+                        if (disp.activo) {
+                            disp.valor -= Math.round(Math.random() * 20 + 5);
+                        } else {
+                            disp.valor += Math.round(Math.random() * 10 + 2);
+                        }
+                        if (disp.valor < 350) disp.valor = 350;
+                        if (disp.valor > disp.umbral_max) registrarEvento(domo.id, disp.id_amb, `ALERTA: Calidad de Aire MALA: ${disp.valor} PPM`, 'alerta', 'alta');
+                    }
+                });
+
+                // Simulación de Reserva de Agua (sin cambios)
                 if (reservaActual < 100 && reservaActual > 0) registrarEvento(domo.id, `sistema_agua_${domo.id}`, `Reserva de agua BAJA: ${reservaActual} L.`, 'alerta', 'media');
                 if (reservaActual <= 0) {
                     reservaActual = 0;
                     registrarEvento(domo.id, `sistema_agua_${domo.id}`, `Reserva de agua AGOTADA.`, 'alerta', 'alta');
                 }
 
+                // Actualización del domo en la API
                 if (domoModificado) {
                     domo.irrigadores = irrigadores;
+                    domo.luces = luces; // Asegurarse de incluir luces en la actualización
+                    domo.ambiente = ambiente; // Asegurarse de incluir ambiente en la actualización
                     domo.reservaAgua = reservaActual;
                     await fetch(`${MOCKAPI_URL}/domos/${domo.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(domo) });
                 }
@@ -156,18 +188,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-    // --- ▼▼▼ CAMBIO 2: NUEVA FUNCIÓN PARA VACIAR LA RESERVA ▼▼▼ ---
     const vaciarReserva = async (domoId) => {
         if (!confirm('¿Seguro que deseas vaciar completamente la reserva de agua de este domo?')) {
             return;
         }
         try {
-            // Es necesario obtener el domo completo para no borrar sus otras propiedades (luces, etc.)
             const domoResponse = await fetch(`${MOCKAPI_URL}/domos/${domoId}`);
             if (!domoResponse.ok) throw new Error('No se pudo obtener el domo para actualizarlo.');
             const domo = await domoResponse.json();
             
-            domo.reservaAgua = 0; // Se establece la reserva en 0
+            domo.reservaAgua = 0;
 
             await fetch(`${MOCKAPI_URL}/domos/${domoId}`, { 
                 method: 'PUT', 
@@ -177,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             registrarEvento(domo.id, `sistema_agua_${domo.id}`, 'Reserva de agua vaciada manualmente.', 'historial', 'media');
             
-            await simularSistemaGlobal(); // Refresca la vista
+            await simularSistemaGlobal();
         } catch (error) {
             console.error('Error al vaciar la reserva:', error);
             alert('No se pudo vaciar la reserva de agua.');
@@ -206,7 +236,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ubicacion: ubicacion,
             reservaAgua: 0,
             irrigadores: [],
-            luces: []
+            luces: [],
+            ambiente: [] // Añadir el array de ambiente al crear un nuevo domo
         };
 
         try {
@@ -289,7 +320,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const cicloDeRefrescoAlertas = async () => { await cargarAlertas(); };
 
-    // --- ▼▼▼ CAMBIO 3: EVENT LISTENER ACTUALIZADO PARA EL BOTÓN "VACIAR" ▼▼▼ ---
     reservasContainer.addEventListener('click', (event) => {
         const target = event.target.closest('button');
         if (!target) return;
