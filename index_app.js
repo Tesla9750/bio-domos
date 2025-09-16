@@ -1,12 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
     const MOCKAPI_URL = 'https://68c60c19442c663bd0262b0a.mockapi.io/v1';
-    const VALOR_RELLENO_AGUA = 1000;
+    
+    // --- ▼▼▼ CAMBIO 1: VALOR DE RECARGA DE AGUA ▼▼▼ ---
+    const VALOR_RELLENO_AGUA = 100; // Se cambió de 1000 a 100
+
     const alertasTbody = document.getElementById('alertas-tbody');
     const reservasContainer = document.getElementById('reservas-container');
 
+    // --- ▼▼▼ CAMBIO 2: ELEMENTOS DEL MODAL Y FORMULARIO ▼▼▼ ---
+    const addDomoModalElement = document.getElementById('addDomoModal');
+    const addDomoModal = new bootstrap.Modal(addDomoModalElement);
+    const formNuevoDomo = document.getElementById('form-nuevo-domo');
+
     let dispositivosMap = {};
 
-    // --- El resto del código hasta el final es el que ya tenías ---
     const mapearDispositivos = async (domos) => {
         dispositivosMap = {};
         domos.forEach(domo => {
@@ -15,7 +22,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             irrigadores.forEach(disp => { dispositivosMap[disp.id_irr] = { nombre: disp.nombre, domo: domo.nombre }; });
             luces.forEach(disp => { dispositivosMap[disp.id_luz] = { nombre: disp.nombre, domo: domo.nombre }; });
-
             dispositivosMap[`sistema_agua_${domo.id}`] = { nombre: 'Sistema de Agua', domo: domo.nombre };
         });
     };
@@ -44,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
         reservasContainer.innerHTML = '';
         if (!domos || domos.length === 0) return;
         domos.forEach(domo => {
-            const reservaCard = `<div class="col-md-4"><div class="content-card p-3 text-center"><h5 class="mb-1">${domo.nombre}</h5><p class="h3 fw-bold text-info">${domo.reservaAgua || 0} L</p><button class="btn btn-info btn-sm mt-2 btn-rellenar" data-id="${domo.id}">Rellenar Reserva</button></div></div>`;
+            const reservaCard = `<div class="col-md-4"><div class="content-card p-3 text-center"><h5 class="mb-1">${domo.nombre}</h5><p class="h3 fw-bold text-info">${domo.reservaAgua || 0} L</p><button class="btn btn-info btn-sm mt-2 btn-rellenar" data-id="${domo.id}">+${VALOR_RELLENO_AGUA} L</button></div></div>`;
             reservasContainer.innerHTML += reservaCard;
         });
     };
@@ -139,6 +145,44 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) { console.error("No se pudo registrar el evento:", error); }
     };
 
+    // --- ▼▼▼ CAMBIO 3: NUEVA FUNCIÓN PARA CREAR DOMOS ▼▼▼ ---
+    const handleNuevoDomoSubmit = async (event) => {
+        event.preventDefault();
+        const nombre = document.getElementById('nombre-domo').value.trim();
+        const ubicacion = document.getElementById('ubicacion-domo').value.trim();
+
+        if (!nombre || !ubicacion) {
+            alert('Por favor, completa todos los campos.');
+            return;
+        }
+
+        const nuevoDomo = {
+            nombre: nombre,
+            ubicacion: ubicacion,
+            reservaAgua: 0,
+            irrigadores: [],
+            luces: []
+        };
+
+        try {
+            const response = await fetch(`${MOCKAPI_URL}/domos`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(nuevoDomo)
+            });
+
+            if (!response.ok) throw new Error('No se pudo crear el nuevo domo.');
+
+            formNuevoDomo.reset();
+            addDomoModal.hide();
+            await simularSistemaGlobal(); // Refresca toda la vista para incluir el nuevo domo
+
+        } catch (error) {
+            console.error("Error al crear el domo:", error);
+            alert(`Error: ${error.message}`);
+        }
+    };
+
     const cicloDeRefrescoAlertas = async () => { await cargarAlertas(); };
 
     reservasContainer.addEventListener('click', (event) => {
@@ -148,8 +192,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- ▼▼▼ CAMBIO: SE VUELVE A LA FORMA ANTERIOR ▼▼▼ ---
-    // Se inician los intervalos de forma continua para que la simulación global siempre esté activa.
+    // --- ▼▼▼ CAMBIO 4: AÑADIR EVENT LISTENER PARA EL NUEVO FORMULARIO ▼▼▼ ---
+    formNuevoDomo.addEventListener('submit', handleNuevoDomoSubmit);
+
     simularSistemaGlobal();
     setInterval(cicloDeRefrescoAlertas, 5000);
     setInterval(simularSistemaGlobal, 10000);
