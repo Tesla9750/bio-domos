@@ -1,16 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
     const MOCKAPI_URL = 'https://68c60c19442c663bd0262b0a.mockapi.io/v1';
-    
-    // --- ▼▼▼ CAMBIO 1: VALOR DE RECARGA DE AGUA ▼▼▼ ---
-    const VALOR_RELLENO_AGUA = 100; // Se cambió de 1000 a 100
-
+    const VALOR_RELLENO_AGUA = 100;
     const alertasTbody = document.getElementById('alertas-tbody');
     const reservasContainer = document.getElementById('reservas-container');
-
-    // --- ▼▼▼ CAMBIO 2: ELEMENTOS DEL MODAL Y FORMULARIO ▼▼▼ ---
+    
+    // Elementos del Modal de Añadir
     const addDomoModalElement = document.getElementById('addDomoModal');
     const addDomoModal = new bootstrap.Modal(addDomoModalElement);
     const formNuevoDomo = document.getElementById('form-nuevo-domo');
+
+    // Elementos del Modal de Edición
+    const editDomoModalElement = document.getElementById('editDomoModal');
+    const editDomoModal = new bootstrap.Modal(editDomoModalElement);
+    const formEditarDomo = document.getElementById('form-editar-domo');
 
     let dispositivosMap = {};
 
@@ -46,11 +48,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    // --- ▼▼▼ CAMBIO 1: SE AÑADE EL BOTÓN "VACIAR" A CADA TARJETA ▼▼▼ ---
     const renderReservas = (domos) => {
         reservasContainer.innerHTML = '';
         if (!domos || domos.length === 0) return;
         domos.forEach(domo => {
-            const reservaCard = `<div class="col-md-4"><div class="content-card p-3 text-center"><h5 class="mb-1">${domo.nombre}</h5><p class="h3 fw-bold text-info">${domo.reservaAgua || 0} L</p><button class="btn btn-info btn-sm mt-2 btn-rellenar" data-id="${domo.id}">+${VALOR_RELLENO_AGUA} L</button></div></div>`;
+            const botonesDeAccion = `
+                <div class="mt-3 d-flex justify-content-center flex-wrap gap-2">
+                    <button class="btn btn-info btn-sm btn-rellenar" data-id="${domo.id}">+${VALOR_RELLENO_AGUA} L</button>
+                    <button class="btn btn-outline-secondary btn-sm btn-vaciar" data-id="${domo.id}">Vaciar</button>
+                    <button class="btn btn-warning btn-sm btn-editar" data-id="${domo.id}" data-bs-toggle="modal" data-bs-target="#editDomoModal">Editar</button>
+                    <button class="btn btn-danger btn-sm btn-eliminar" data-id="${domo.id}">Eliminar</button>
+                </div>
+            `;
+            const reservaCard = `
+                <div class="col-md-4">
+                    <div class="content-card p-3 text-center">
+                        <h5 class="mb-1">${domo.nombre}</h5>
+                        <p class="h3 fw-bold text-info">${domo.reservaAgua || 0} L</p>
+                        ${botonesDeAccion}
+                    </div>
+                </div>`;
             reservasContainer.innerHTML += reservaCard;
         });
     };
@@ -132,12 +150,40 @@ document.addEventListener('DOMContentLoaded', () => {
             domo.reservaAgua = (domo.reservaAgua || 0) + VALOR_RELLENO_AGUA;
             await fetch(`${MOCKAPI_URL}/domos/${domoId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(domo) });
             registrarEvento(domo.id, `sistema_agua_${domo.id}`, 'Reserva de agua rellenada.', 'historial', 'baja');
-            simularSistemaGlobal();
+            await simularSistemaGlobal();
         } catch (error) {
             console.error('Error al rellenar la reserva:', error);
         }
     };
     
+    // --- ▼▼▼ CAMBIO 2: NUEVA FUNCIÓN PARA VACIAR LA RESERVA ▼▼▼ ---
+    const vaciarReserva = async (domoId) => {
+        if (!confirm('¿Seguro que deseas vaciar completamente la reserva de agua de este domo?')) {
+            return;
+        }
+        try {
+            // Es necesario obtener el domo completo para no borrar sus otras propiedades (luces, etc.)
+            const domoResponse = await fetch(`${MOCKAPI_URL}/domos/${domoId}`);
+            if (!domoResponse.ok) throw new Error('No se pudo obtener el domo para actualizarlo.');
+            const domo = await domoResponse.json();
+            
+            domo.reservaAgua = 0; // Se establece la reserva en 0
+
+            await fetch(`${MOCKAPI_URL}/domos/${domoId}`, { 
+                method: 'PUT', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(domo) 
+            });
+            
+            registrarEvento(domo.id, `sistema_agua_${domo.id}`, 'Reserva de agua vaciada manualmente.', 'historial', 'media');
+            
+            await simularSistemaGlobal(); // Refresca la vista
+        } catch (error) {
+            console.error('Error al vaciar la reserva:', error);
+            alert('No se pudo vaciar la reserva de agua.');
+        }
+    };
+
     const registrarEvento = async (domoId, dispositivoId, mensaje, tipo, prioridad) => {
         const evento = { domoId, dispositivoId, type: tipo, mensaje, timestamp: new Date().toISOString(), prioridad };
         try {
@@ -145,7 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) { console.error("No se pudo registrar el evento:", error); }
     };
 
-    // --- ▼▼▼ CAMBIO 3: NUEVA FUNCIÓN PARA CREAR DOMOS ▼▼▼ ---
     const handleNuevoDomoSubmit = async (event) => {
         event.preventDefault();
         const nombre = document.getElementById('nombre-domo').value.trim();
@@ -175,25 +220,96 @@ document.addEventListener('DOMContentLoaded', () => {
 
             formNuevoDomo.reset();
             addDomoModal.hide();
-            await simularSistemaGlobal(); // Refresca toda la vista para incluir el nuevo domo
+            await simularSistemaGlobal();
 
         } catch (error) {
             console.error("Error al crear el domo:", error);
             alert(`Error: ${error.message}`);
         }
     };
+    
+    const abrirModalEditar = async (domoId) => {
+        try {
+            const response = await fetch(`${MOCKAPI_URL}/domos/${domoId}`);
+            if (!response.ok) throw new Error('No se pudieron cargar los datos del domo para editar.');
+            const domo = await response.json();
+            document.getElementById('edit-domo-id').value = domo.id;
+            document.getElementById('edit-nombre-domo').value = domo.nombre;
+            document.getElementById('edit-ubicacion-domo').value = domo.ubicacion;
+        } catch (error) {
+            console.error("Error al abrir modal de edición:", error);
+            alert(error.message);
+        }
+    };
+
+    const handleEditarDomoSubmit = async (event) => {
+        event.preventDefault();
+        const domoId = document.getElementById('edit-domo-id').value;
+        const nombre = document.getElementById('edit-nombre-domo').value.trim();
+        const ubicacion = document.getElementById('edit-ubicacion-domo').value.trim();
+
+        if (!nombre || !ubicacion) {
+            alert('Por favor, completa todos los campos.');
+            return;
+        }
+
+        const domoActualizado = { nombre, ubicacion };
+
+        try {
+            const response = await fetch(`${MOCKAPI_URL}/domos/${domoId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(domoActualizado)
+            });
+            if (!response.ok) throw new Error('No se pudo actualizar el domo.');
+            
+            editDomoModal.hide();
+            await simularSistemaGlobal();
+        } catch (error) {
+            console.error("Error al guardar cambios del domo:", error);
+            alert(error.message);
+        }
+    };
+
+    const eliminarDomo = async (domoId) => {
+        if (!confirm('¿Estás seguro de que deseas eliminar este domo? Esta acción es permanente.')) {
+            return;
+        }
+        try {
+            const response = await fetch(`${MOCKAPI_URL}/domos/${domoId}`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) throw new Error('No se pudo eliminar el domo.');
+            await simularSistemaGlobal();
+        } catch (error) {
+            console.error("Error al eliminar el domo:", error);
+            alert(error.message);
+        }
+    };
 
     const cicloDeRefrescoAlertas = async () => { await cargarAlertas(); };
 
+    // --- ▼▼▼ CAMBIO 3: EVENT LISTENER ACTUALIZADO PARA EL BOTÓN "VACIAR" ▼▼▼ ---
     reservasContainer.addEventListener('click', (event) => {
-        if (event.target.classList.contains('btn-rellenar')) {
-            const domoId = event.target.dataset.id;
-            if (domoId) rellenarReserva(domoId);
+        const target = event.target.closest('button');
+        if (!target) return;
+
+        const domoId = target.dataset.id;
+        if (!domoId) return;
+
+        if (target.classList.contains('btn-rellenar')) {
+            rellenarReserva(domoId);
+        } else if (target.classList.contains('btn-vaciar')) {
+            vaciarReserva(domoId);
+        } else if (target.classList.contains('btn-editar')) {
+            abrirModalEditar(domoId);
+        } else if (target.classList.contains('btn-eliminar')) {
+            eliminarDomo(domoId);
         }
     });
 
-    // --- ▼▼▼ CAMBIO 4: AÑADIR EVENT LISTENER PARA EL NUEVO FORMULARIO ▼▼▼ ---
     formNuevoDomo.addEventListener('submit', handleNuevoDomoSubmit);
+    formEditarDomo.addEventListener('submit', handleEditarDomoSubmit);
 
     simularSistemaGlobal();
     setInterval(cicloDeRefrescoAlertas, 5000);

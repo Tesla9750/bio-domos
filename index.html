@@ -116,6 +116,34 @@
         </div>
     </div>
 
+    <div class="modal fade" id="editDomoModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background-color: #2a2d2f; color: #e0e0e0;">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Bio-Domo</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-editar-domo">
+                        <input type="hidden" id="edit-domo-id">
+                        <div class="mb-3">
+                            <label for="edit-nombre-domo" class="form-label">Nombre del Domo</label>
+                            <input type="text" class="form-control" id="edit-nombre-domo" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit-ubicacion-domo" class="form-label">Ubicación</label>
+                            <input type="text" class="form-control" id="edit-ubicacion-domo" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" form="form-editar-domo">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <footer class="footer text-white text-center py-2">
         <div class="container">
