@@ -20,8 +20,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         dispositivos.forEach(disp => {
-            // === CAMBIO 1: Íconos de encendido/apagado actualizados ===
-            const imagenSrc = disp.activo ? 'images/on_a.png' : 'images/off_a.png'; 
+            let imagenSrc;
+            if (disp.tipo === 'Temperatura') {
+                imagenSrc = disp.activo ? 'images/on_air.png' : 'images/off_air.png';
+            } else { // Para Calidad de Aire
+                imagenSrc = disp.activo ? 'images/on_a.png' : 'images/off_a.png';
+            }
+            
             const estadoBtn = `<button class="btn-icon btn-toggle" data-id="${disp.id_amb}" title="Cambiar estado"><img src="${imagenSrc}" alt="Estado" width="36"></button>`;
             const unidad = disp.tipo === 'Temperatura' ? '°C' : 'PPM';
             const fila = `<tr>
@@ -45,10 +50,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const iconosPorEvento = {
-            'ALTA': { src: 'images/temp_hot.png', alt: 'Temperatura Alta' },
-            'BAJA': { src: 'images/temp_cold.png', alt: 'Temperatura Baja' },
-            // === CAMBIO 2: Ícono de calidad de aire MALA actualizado ===
-            'MALA': { src: 'images/alert.png', alt: 'Calidad de Aire Mala' }, 
+            'ALTA': { src: 'images/alert.png', alt: 'Alerta de Temperatura' },
+            'BAJA': { src: 'images/alert.png', alt: 'Alerta de Temperatura' },
+            'MALA': { src: 'images/alert.png', alt: 'Calidad de Aire Mala' },
+            'encendido': { src: 'images/on_a.png', alt: 'Encendido' },      // Ícono para encendido manual
+            'apagado':   { src: 'images/off_a.png', alt: 'Apagado' },        // Ícono para apagado manual
             'creado': { src: 'images/add.png', alt: 'Creado' },
             'modificado': { src: 'images/update.png', alt: 'Modificado' },
             'eliminado': { src: 'images/delete.png', alt: 'Eliminado' },
@@ -218,11 +224,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // --- ▼▼▼ FUNCIÓN MODIFICADA PARA REGISTRAR EVENTO DE ENCENDIDO/APAGADO ▼▼▼ ---
     const toggleEstadoDispositivo = async (dispId) => {
         const index = domoState.ambiente.findIndex(d => d.id_amb === dispId);
         if (index === -1) return;
-        domoState.ambiente[index].activo = !domoState.ambiente[index].activo;
+
+        const originalDispositivo = { ...domoState.ambiente[index] };
+        const nuevoEstado = !originalDispositivo.activo;
+
+        domoState.ambiente[index].activo = nuevoEstado;
+        renderTablaDispositivos(domoState.ambiente);
+
         if (await actualizarDomoEnAPI()) {
+            const dispositivoCambiado = domoState.ambiente[index];
+            const textoEstado = nuevoEstado ? 'encendido' : 'apagado';
+            const mensaje = `Dispositivo '${dispositivoCambiado.nombre}' se ha ${textoEstado} manualmente.`;
+            registrarEvento(dispositivoCambiado, mensaje, 'historial', 'baja');
+        } else {
+            // Si la API falla, revierte el cambio
+            domoState.ambiente[index] = originalDispositivo;
             renderTablaDispositivos(domoState.ambiente);
         }
     };
